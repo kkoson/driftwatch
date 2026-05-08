@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"github.com/your-org/driftwatch/internal/snapshot"
 )
@@ -20,8 +21,15 @@ type BuildFunc func(cfg map[string]string) (Provider, error)
 var registry = map[string]BuildFunc{}
 
 // Register associates name with a BuildFunc. It is typically called from
-// provider package init() functions.
+// provider package init() functions. Panics if name is empty or already
+// registered, to catch configuration mistakes early.
 func Register(name string, fn BuildFunc) {
+	if name == "" {
+		panic("provider: Register called with empty name")
+	}
+	if _, dup := registry[name]; dup {
+		panic(fmt.Sprintf("provider: Register called twice for provider %q", name))
+	}
 	registry[name] = fn
 }
 
@@ -34,11 +42,12 @@ func Build(name string, cfg map[string]string) (Provider, error) {
 	return fn(cfg)
 }
 
-// Registered returns the names of all registered providers.
+// Registered returns the names of all registered providers in sorted order.
 func Registered() []string {
 	names := make([]string, 0, len(registry))
 	for k := range registry {
 		names = append(names, k)
 	}
+	sort.Strings(names)
 	return names
 }
